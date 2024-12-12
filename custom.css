@@ -1,0 +1,137 @@
+/* Use same font throughout the app */
+@import url("//fonts.googleapis.com/css?family=Montserrat");
+
+/* General styling */
+* {
+  font-family: 'Montserrat' !important;
+  color: #1F4257;
+}
+
+/* Colour hyperlinks */
+a {
+  color: #E7553C;
+}
+
+/* Title panel styling */
+.title-panel {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to right, #012169, #012169);
+  padding: 30px; /* Increased padding for a taller box */
+  border-radius: 20px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Main container styling */
+.main-container {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  padding: 0 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Left side styling */
+.left-side {
+  padding: 0;
+}
+
+.left-side-title {
+  font-size: 48px;
+  font-weight: bold;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.left-side-subtitle {
+  font-size: 18px;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Right side logo styling */
+.right-side {
+  text-align: right;
+  display: flex;
+  align-items: center;
+}
+
+.right-side-logo {
+  text-decoration: none;
+  padding: 5px;
+}
+
+.footer {
+  text-align: center;
+  padding: 10px;
+  background-color: #f1f1f1;
+  color: #333;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Custom styles for larger text */
+.large-text {
+  font-size: 24px;
+}
+
+/* Custom sidebar styling */
+.sidebar-custom {
+  background-color: #f7f7f7;
+  border-radius: 10px;
+  padding: 15px;
+}
+
+/* Centered buttons with dynamic spacing */
+.centered-buttons {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Modern button styles */
+.btn-start {
+  background-color: #5E9946; /* Modern green */
+  color: white;
+}
+
+.btn-stop {
+  background-color: #FF6F59; /* Modern red */
+  color: white;
+}
+
+.btn-reset {
+  background-color: #F2994A; /* Modern orange */
+  color: white;
+}
+
+.btn-add, .btn-download {
+  background-color: #E5E5E5; /* Modern grey */
+  color: black;
+}
+
+.zone-key {
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.centered-text-inputs .form-group {
+  text-align: center;
+}
+
+.footer {
+  text-align: right;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e7e7e7;
+  border-bottom: 1px solid #e7e7e7;
+}

@@ -1,0 +1,267 @@
+# modules/six_arm_module.R
+
+# UI Module
+sixArmUI <- function(id) {
+  ns <- NS(id)
+  
+  tagList(
+    h2("Six-Arm Olfactometer"),
+    br(),
+    fluidRow(
+      column(6, h4("Trial Timer (seconds)"), verbatimTextOutput(ns("trial_timer")))
+    ),
+    fluidRow(
+      class = "centered-buttons",
+      column(2, actionButton(ns("start"), "Start Recording", class = "btn btn-start")),
+      column(2, actionButton(ns("stop"), "Stop Recording", class = "btn btn-stop")),
+      column(2, actionButton(ns("reset_trial"), "Reset Trial", class = "btn btn-reset")),
+      column(2, actionButton(ns("add_trial"), "Add New Trial", class = "btn btn-add")),
+      column(2, downloadButton(ns("downloadData"), "Download Data as CSV", class = "btn btn-download"))
+    ),
+    tags$br(), tags$br(),
+    fluidRow(
+      class = "centered-text-inputs",
+      class = "centered-buttons",
+      column(1, textInput(ns("arm1_count"), "Arm 1 Count", value = "0")),
+      column(1, textInput(ns("arm2_count"), "Arm 2 Count", value = "0")),
+      column(1, textInput(ns("arm3_count"), "Arm 3 Count", value = "0")),
+      column(1, textInput(ns("arm4_count"), "Arm 4 Count", value = "0")),
+      column(1, textInput(ns("arm5_count"), "Arm 5 Count", value = "0")),
+      column(1, textInput(ns("arm6_count"), "Arm 6 Count", value = "0")),
+      column(1, textInput(ns("central_count"), "Center Count", value = "0"))
+    ),
+    fluidRow(
+      class = "centered-buttons",
+      actionButton(ns("submit"), "Submit Counts"),
+    ),
+    tags$br(), tags$br(),
+    h4("Trial Summary"),
+    tableOutput(ns("results"))
+  )
+}
+
+# Server Module
+sixArmServer <- function(id, parent_input) {
+  moduleServer(id, function(input, output, session) {
+    # Initialize reactive values
+    arms <- reactiveValues(
+      data = data.frame(
+        Trial = character(0),
+        Arm = character(0),
+        Odour_Source = character(0),
+        Count = numeric(0),
+        stringsAsFactors = FALSE
+      ),
+      start_time = NULL,
+      trial_running = FALSE,
+      elapsed_time = 0,
+      total_elapsed_time = 0,
+      # Add default odour sources
+      arm1_odour = "Odour A",
+      arm2_odour = "Odour B",
+      arm3_odour = "Odour C",
+      arm4_odour = "Odour D",
+      arm5_odour = "Odour E",
+      arm6_odour = "Odour F",
+      center_odour = "Center"
+    )
+    
+    # Start recording
+    observeEvent(input$start, {
+      # Set default values if inputs are empty
+      shiny::insertUI(
+        selector = "body",
+        where = "afterBegin",
+        ui = tags$script(HTML(sprintf(
+          "if (!document.getElementById('arm1_six_odour').value) {
+             Shiny.setInputValue('arm1_six_odour', '%s');
+             document.getElementById('arm1_six_odour').value = '%s';
+           }
+           if (!document.getElementById('arm2_six_odour').value) {
+             Shiny.setInputValue('arm2_six_odour', '%s');
+             document.getElementById('arm2_six_odour').value = '%s';
+           }
+           if (!document.getElementById('arm3_six_odour').value) {
+             Shiny.setInputValue('arm3_six_odour', '%s');
+             document.getElementById('arm3_six_odour').value = '%s';
+           }
+           if (!document.getElementById('arm4_six_odour').value) {
+             Shiny.setInputValue('arm4_six_odour', '%s');
+             document.getElementById('arm4_six_odour').value = '%s';
+           }
+           if (!document.getElementById('arm5_six_odour').value) {
+             Shiny.setInputValue('arm5_six_odour', '%s');
+             document.getElementById('arm5_six_odour').value = '%s';
+           }
+           if (!document.getElementById('arm6_six_odour').value) {
+             Shiny.setInputValue('arm6_six_odour', '%s');
+             document.getElementById('arm6_six_odour').value = '%s';
+           }",
+          arms$arm1_odour, arms$arm1_odour,
+          arms$arm2_odour, arms$arm2_odour,
+          arms$arm3_odour, arms$arm3_odour,
+          arms$arm4_odour, arms$arm4_odour,
+          arms$arm5_odour, arms$arm5_odour,
+          arms$arm6_odour, arms$arm6_odour
+        )))
+      )
+      
+      arms$start_time <- Sys.time()
+      arms$trial_running <- TRUE
+      session$sendCustomMessage(type = "attachKeyListener", message = list())
+      shinyjs::disable(selector = 'input')
+    })
+    
+    # Stop recording
+    observeEvent(input$stop, {
+      arms$trial_running <- FALSE
+      arms$start_time <- NULL
+      session$sendCustomMessage(type = "detachKeyListener", message = list())
+      shinyjs::enable(selector = 'input')
+    })
+    
+    # Add new trial
+    observeEvent(input$add_trial, {
+      reset_trial_data()
+      
+      shiny::insertUI(
+        selector = "body",
+        where = "afterBegin",
+        ui = tags$script(sprintf(
+          "Shiny.setInputValue('trial_number_six', '%s');",
+          as.character(as.numeric(parent_input$trial_number_six) + 1)
+        ))
+      )
+    })
+    
+    # Reset trial
+    observeEvent(input$reset_trial, {
+      reset_trial_data()
+      reset_counts()
+    })
+    
+    # Helper function to reset trial data
+    reset_trial_data <- function() {
+      arms$start_time <- NULL
+      arms$trial_running <- FALSE
+      arms$elapsed_time <- 0
+      arms$total_elapsed_time <- 0
+      arms$data <- data.frame(
+        Trial = character(0),
+        Arm = character(0),
+        Odour_Source = character(0),
+        Count = numeric(0),
+        stringsAsFactors = FALSE
+      )
+    }
+    
+    # Helper function to reset counts
+    reset_counts <- function() {
+      updateTextInput(session, "arm1_count", value = "0")
+      updateTextInput(session, "arm2_count", value = "0")
+      updateTextInput(session, "arm3_count", value = "0")
+      updateTextInput(session, "arm4_count", value = "0")
+      updateTextInput(session, "arm5_count", value = "0")
+      updateTextInput(session, "arm6_count", value = "0")
+      updateTextInput(session, "central_count", value = "0")
+    }
+    
+    # Submit counts
+    observeEvent(input$submit, {
+      # Convert counts to numeric
+      arm1_count <- as.numeric(input$arm1_count)
+      arm2_count <- as.numeric(input$arm2_count)
+      arm3_count <- as.numeric(input$arm3_count)
+      arm4_count <- as.numeric(input$arm4_count)
+      arm5_count <- as.numeric(input$arm5_count)
+      arm6_count <- as.numeric(input$arm6_count)
+      central_count <- as.numeric(input$central_count)
+      
+      # Calculate total and validate against released count
+      total_count <- arm1_count + arm2_count + arm3_count + arm4_count + arm5_count + arm6_count + central_count
+      if (total_count != as.numeric(parent_input$num_released_six)) {
+        showModal(modalDialog(
+          title = "Error",
+          "The total number of individuals in all arms does not match the number released.",
+          easyClose = TRUE,
+          footer = NULL
+        ))
+      } else {
+        # Get odour sources with defaults if empty
+        arm1_odour <- if (parent_input$arm1_six_odour == "") arms$arm1_odour else parent_input$arm1_six_odour
+        arm2_odour <- if (parent_input$arm2_six_odour == "") arms$arm2_odour else parent_input$arm2_six_odour
+        arm3_odour <- if (parent_input$arm3_six_odour == "") arms$arm3_odour else parent_input$arm3_six_odour
+        arm4_odour <- if (parent_input$arm4_six_odour == "") arms$arm4_odour else parent_input$arm4_six_odour
+        arm5_odour <- if (parent_input$arm5_six_odour == "") arms$arm5_odour else parent_input$arm5_six_odour
+        arm6_odour <- if (parent_input$arm6_six_odour == "") arms$arm6_odour else parent_input$arm6_six_odour
+        
+        # Add data
+        arms$data <- arms$data %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 1", 
+                  Odour_Source = arm1_odour, Count = round(arm1_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 2", 
+                  Odour_Source = arm2_odour, Count = round(arm2_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 3", 
+                  Odour_Source = arm3_odour, Count = round(arm3_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 4", 
+                  Odour_Source = arm4_odour, Count = round(arm4_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 5", 
+                  Odour_Source = arm5_odour, Count = round(arm5_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Arm 6", 
+                  Odour_Source = arm6_odour, Count = round(arm6_count, 0)) %>%
+          add_row(Trial = parent_input$trial_number_six, Arm = "Center", 
+                  Odour_Source = "Center", Count = round(central_count, 0))
+      }
+    })
+    
+    # Timer output
+    autoInvalidate <- reactiveTimer(1000)
+    
+    output$trial_timer <- renderText({
+      autoInvalidate()
+      if (arms$trial_running) {
+        elapsed <- as.numeric(difftime(Sys.time(), arms$start_time, units = "secs")) + 
+          arms$total_elapsed_time
+      } else {
+        elapsed <- arms$total_elapsed_time
+      }
+      round(elapsed, 0)  # Round to whole number
+    })
+    
+    # Results table
+    output$results <- renderTable({
+      arms$data %>%
+        mutate(across(where(is.numeric), \(x) round(x, 0))) %>%
+        rename(
+          "Trial" = Trial,
+          "Arm" = Arm,
+          "Odour Source" = Odour_Source,
+          "Count" = Count
+        ) %>%
+        mutate(Count = as.integer(Count))
+    })
+    
+    # Download handler
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        paste("six_arm_olfactometer_data_", parent_input$trial_number_six, "_", 
+              Sys.Date(), ".csv", sep = "")
+      },
+      content = function(file) {
+        # Summarize and prepare data
+        summarized_data <- arms$data %>%
+          group_by(Trial, Arm, Odour_Source) %>%
+          summarize(
+            Count = sum(Count),
+            .groups = 'drop'
+          )
+        
+        # Replace underscores in column names with spaces
+        colnames(summarized_data) <- gsub("_", " ", colnames(summarized_data))
+        
+        # Write to CSV
+        write.csv(summarized_data, file, row.names = FALSE)
+      }
+    )
+  })
+}

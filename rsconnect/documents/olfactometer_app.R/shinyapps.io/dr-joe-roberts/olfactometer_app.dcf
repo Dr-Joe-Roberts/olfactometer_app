@@ -1,0 +1,13 @@
+name: olfactometer_app
+title: olfactometer_app
+username: dr-joe-roberts
+account: dr-joe-roberts
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12068298
+bundleId: 8741527
+url: https://dr-joe-roberts.shinyapps.io/olfactometer_app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: -L-Hait28020.Rhistory|four_arm_olfactometer_data_2_2024-05-29.csv|glmm_model_summary_duration.csv|prepared_data_duration.csv

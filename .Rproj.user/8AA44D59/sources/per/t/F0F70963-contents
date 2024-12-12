@@ -1,0 +1,812 @@
+library(shiny)
+library(dplyr)
+library(lubridate)
+library(shinyjs)
+
+# Helper function to format time as MM:SS
+format_duration <- function(seconds) {
+  mins <- floor(seconds / 60)
+  secs <- round(seconds %% 60)
+  sprintf("%02d:%02d", mins, secs)
+}
+
+# Define UI
+ui <- fluidPage(
+  useShinyjs(),
+  # JavaScript to manage key presses
+  tags$script(HTML("
+    function attachKeyListener() {
+      document.addEventListener('keydown', keyListener);
+    }
+    function detachKeyListener() {
+      document.removeEventListener('keydown', keyListener);
+    }
+    function keyListener(event) {
+      if(['1', '2', '3', '4', '5'].includes(event.key)) {
+        Shiny.onInputChange('key', event.key);
+      } else {
+        alert('Invalid key! Please press a key between 1 and 5.');
+      }
+    }
+    Shiny.addCustomMessageHandler('attachKeyListener', function(message) {
+      attachKeyListener();
+    });
+    Shiny.addCustomMessageHandler('detachKeyListener', function(message) {
+      detachKeyListener();
+    });
+  ")),
+  # Include custom CSS for styling
+  includeCSS("custom.css"),
+  # Header elements
+  tags$head(
+    # Include Google font
+    tags$link(rel = 'stylesheet', type = 'text/css', href = 'https://fonts.googleapis.com/css?family=Montserrat&display=swap'),
+    # Include favicon (if you have one)
+    tags$link(rel = 'icon', type = 'image/png', href = 'HAU-shield.png')
+  ),
+  # Title panel
+  titlePanel(
+    # Title panel content
+    title = tags$div(
+      class = "title-panel",
+      # Main container
+      tags$div(
+        class = "main-container",
+        # Left side: title, version, and subtitle
+        tags$div(
+          class = "left-side",
+          tags$div(
+            tags$span("olfactometeR", class = "left-side-title")
+          ),
+          tags$div(
+            tags$span("An App to Record Insect Behaviour in Olfactometer Bioassays", class = "left-side-subtitle")
+          )
+        ),
+        # Right side: logos
+        tags$div(
+          class = "right-side",
+          # Harper Adams logo with padding
+          tags$a(
+            href = 'https://www.harper-adams.ac.uk/',
+            tags$img(
+              src = 'HAU.png',  
+              height = 70,
+              width = 215
+            ),
+            target = '_blank',
+            class = 'right-side-logo'
+          )
+        )
+      )
+    ),
+    # Window title for the browser tab
+    windowTitle = 'Insect Olfactometer Data Collection'
+  ),
+  sidebarLayout(
+    sidebarPanel(
+      width = 3, # Adjusting the width for better laptop screen usability
+      h3("Olfactometer Type", class = "large-text"),
+      selectInput("olfactometer_type", "Select Olfactometer Type:", 
+                  choices = list("Four-Arm Olfactometer" = "four", "Two-Arm Olfactometer" = "two", "Six-Arm Olfactometer" = "six")),
+      # Conditional UI for Four-Arm Olfactometer
+      conditionalPanel(
+        condition = "input.olfactometer_type == 'four'",
+        h3("Arm Assignments", class = "large-text"),
+        fluidRow(
+          column(4, tags$span("Arm 1", class = "arm-key"),
+                 tags$div("Key 1", align = "left", class = "key-label")),
+          column(8, textInput("arm1_odour", "Odour Source:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 2", class = "arm-key"),
+                 tags$div("Key 2", align = "left", class = "key-label")),
+          column(8, textInput("arm2_odour", "Odour Source:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 3", class = "arm-key"),
+                 tags$div("Key 3", align = "left", class = "key-label")),
+          column(8, textInput("arm3_odour", "Odour Source:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 4", class = "arm-key"),
+                 tags$div("Key 4", align = "left", class = "key-label")),
+          column(8, textInput("arm4_odour", "Odour Source:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Center", class = "arm-key"),
+                 tags$div("Key 5", align = "left", class = "key-label")),
+          column(8, textInput("arm5_odour", "Center:", value = "Center"))
+        ),
+        textInput("trial_number_four", "Trial Number", value = "1")
+      ),
+      
+      # Conditional UI for Two-Arm Olfactometer
+      conditionalPanel(
+        condition = "input.olfactometer_type == 'two'",
+        textInput("num_released", "Number of Individuals Released", value = "1"),
+        h3("Arm Assignments", class = "large-text"),
+        fluidRow(
+          column(4, tags$span("Arm 1", class = "arm-key"),
+                 tags$div("Key 1", align = "left", class = "key-label")),
+          column(8, textInput("two_arm_arm1_odour", "Odour Source 1:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 2", class = "arm-key"),
+                 tags$div("Key 2", align = "left", class = "key-label")),
+          column(8, textInput("two_arm_arm2_odour", "Odour Source 2:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Center", class = "arm-key"),
+                 tags$div("Key 5", align = "left", class = "key-label")),
+          column(8, textInput("two_arm_arm5_odour", "Center:", value = "Center"))
+        ),
+        textInput("trial_number_two", "Trial Number", value = "1")
+      ),
+      
+      # Conditional UI for Six-Arm Olfactometer
+      conditionalPanel(
+        condition = "input.olfactometer_type == 'six'",
+        textInput("num_released_six", "Number of Individuals Released", value = "1"),
+        h3("Arm Assignments", class = "large-text"),
+        fluidRow(
+          column(4, tags$span("Arm 1", class = "arm-key"),
+                 tags$div("Key 1", align = "left", class = "key-label")),
+          column(8, textInput("arm1_six_odour", "Odour Source 1:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 2", class = "arm-key"),
+                 tags$div("Key 2", align = "left", class = "key-label")),
+          column(8, textInput("arm2_six_odour", "Odour Source 2:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 3", class = "arm-key"),
+                 tags$div("Key 3", align = "left", class = "key-label")),
+          column(8, textInput("arm3_six_odour", "Odour Source 3:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 4", class = "arm-key"),
+                 tags$div("Key 4", align = "left", class = "key-label")),
+          column(8, textInput("arm4_six_odour", "Odour Source 4:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 5", class = "arm-key"),
+                 tags$div("Key 5", align = "left", class = "key-label")),
+          column(8, textInput("arm5_six_odour", "Odour Source 5:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Arm 6", class = "arm-key"),
+                 tags$div("Key 6", align = "left", class = "key-label")),
+          column(8, textInput("arm6_six_odour", "Odour Source 6:", value = ""))
+        ),
+        fluidRow(
+          column(4, tags$span("Center", class = "arm-key"),
+                 tags$div("Key 7", align = "left", class = "key-label")),
+          column(8, textInput("arm7_six_odour", "Center:", value = "Center"))
+        ),
+        textInput("trial_number_six", "Trial Number", value = "1")
+      )
+    ),
+    mainPanel(
+      tabsetPanel(id = "tabs",
+                  tabPanel("Instructions", 
+                           uiOutput("introduction"),
+                           h3("Using the App"),
+                           tags$ol(
+                             tags$li("Select Olfactometer Type: Choose the type of olfactometer you are using from the dropdown menu in the sidebar."),
+                             tags$li("Enter Arm Assignments: Depending on the selected olfactometer type, enter the odour source for each arm."),
+                             tags$li("Set Trial Information: Provide the trial number and other relevant details."),
+                             tags$li("Start Recording: Press the 'Start Recording' button to begin the trial."),
+                             tags$li("Record Arm Entries: Press the number key corresponding to each arm (1-6) as insects move between arms."),
+                             tags$li("Stop Recording: Press the 'Stop Recording' button to end the trial."),
+                             tags$li("Review and Download Data: Review the trial summary and download the data as a CSV file."),
+                             tags$li("Reset or Add New Trial: Use the 'Reset Trial' or 'Add New Trial' buttons as needed.")
+                           ),
+                           br(),
+                           h3("Best Practices"),
+                           HTML('<p>The following table summarises best practices for conducting insect olfactometer bioassays. These guidelines are based on the comprehensive review provided in the paper by <a href="https://doi.org/10.1111/eea.13351" target="_blank">Roberts et al. (2023)</a>, which outlines critical considerations to ensure the reliability and reproducibility of bioassay results.</p>'),
+                           tableOutput("best_practices")
+                  ),
+                  tabPanel("Four-Arm Olfactometer",
+                           h2("Four-Arm Olfactometer"),
+                           h3("Trial Status"),
+                           fluidRow(
+                             column(6, h4("Current Arm"), verbatimTextOutput("current_arm")),
+                             column(6, h4("Trial Timer"), verbatimTextOutput("trial_timer"))
+                           ),
+                           fluidRow(
+                             class = "centered-buttons",
+                             column(2, actionButton("start", "Start Recording", class = "btn btn-start")),
+                             column(2, actionButton("stop", "Stop Recording", class = "btn btn-stop")),
+                             column(2, actionButton("reset_trial", "Reset Trial", class = "btn btn-reset")),
+                             column(2, actionButton("add_trial", "Add New Trial", class = "btn btn-add")),
+                             column(2, downloadButton("downloadData", "Download Data as CSV", class = "btn btn-download"))
+                           ),
+                           tags$br(), tags$br(),
+                           h3("Trial Summary"),
+                           tableOutput("arm_times")
+                  ),
+                  tabPanel("Two-Arm Olfactometer",
+                           h2("Two-Arm Olfactometer"),
+                           h3("Trial Status"),
+                           fluidRow(
+                             column(6, h4("Trial Timer"), verbatimTextOutput("two_arm_trial_timer"))
+                           ),
+                           fluidRow(
+                             class = "centered-buttons",
+                             column(2, actionButton("two_arm_start", "Start Recording", class = "btn btn-start")),
+                             column(2, actionButton("two_arm_stop", "Stop Recording", class = "btn btn-stop")),
+                             column(2, actionButton("two_arm_reset_trial", "Reset Trial", class = "btn btn-reset")),
+                             column(2, actionButton("two_arm_add_trial", "Add New Trial", class = "btn btn-add")),
+                             column(2, downloadButton("downloadDataTwoArm", "Download Data as CSV", class = "btn btn-download"))
+                           ),
+                           tags$br(), tags$br(),
+                           textInput("arm1_count", "Odour Source 1 Count", value = "0"),
+                           textInput("arm2_count", "Odour Source 2 Count", value = "0"),
+                           textInput("central_count", "Central Arm Count", value = "0"),
+                           actionButton("submit_two_arm", "Submit Counts"),
+                           tags$br(), tags$br(),
+                           h3("Trial Summary"),
+                           tableOutput("two_arm_results")
+                  ),
+                  tabPanel("Six-Arm Olfactometer",
+                           h2("Six-Arm Olfactometer"),
+                           h3("Trial Status"),
+                           fluidRow(
+                             column(6, h4("Trial Timer"), verbatimTextOutput("six_arm_trial_timer"))
+                           ),
+                           fluidRow(
+                             class = "centered-buttons",
+                             column(2, actionButton("six_arm_start", "Start Recording", class = "btn btn-start")),
+                             column(2, actionButton("six_arm_stop", "Stop Recording", class = "btn btn-stop")),
+                             column(2, actionButton("six_arm_reset_trial", "Reset Trial", class = "btn btn-reset")),
+                             column(2, actionButton("six_arm_add_trial", "Add New Trial", class = "btn btn-add")),
+                             column(2, downloadButton("downloadDataSixArm", "Download Data as CSV", class = "btn btn-download"))
+                           ),
+                           tags$br(), tags$br(),
+                           textInput("arm1_six_count", "Odour Source 1 Count", value = "0"),
+                           textInput("arm2_six_count", "Odour Source 2 Count", value = "0"),
+                           textInput("arm3_six_count", "Odour Source 3 Count", value = "0"),
+                           textInput("arm4_six_count", "Odour Source 4 Count", value = "0"),
+                           textInput("arm5_six_count", "Odour Source 5 Count", value = "0"),
+                           textInput("arm6_six_count", "Odour Source 6 Count", value = "0"),
+                           textInput("central_six_count", "Central Arm Count", value = "0"),
+                           actionButton("submit_six_arm", "Submit Counts"),
+                           tags$br(), tags$br(),
+                           h3("Trial Summary"),
+                           tableOutput("six_arm_results")
+                  )
+      )
+    )
+  ),
+  tags$footer(
+    class = "footer",
+    HTML("&copy; Joe Roberts and Ben Clunie 2024")
+  )
+)
+
+# Define server logic
+server <- function(input, output, session) {
+  arms <- reactiveValues(
+    current_arm = "Center",
+    start_time = NULL,
+    times = data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    ),
+    all_times = data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    ),
+    trial_start = NULL,
+    trial_running = FALSE,
+    elapsed_time = 0,
+    total_elapsed_time = 0,
+    two_arm_data = data.frame(
+      Trial = character(0),
+      Arm = character(0),
+      Odour_Source = character(0),
+      Count = numeric(0),
+      stringsAsFactors = FALSE
+    ),
+    two_arm_start_time = NULL,
+    two_arm_trial_running = FALSE,
+    two_arm_elapsed_time = 0,
+    two_arm_total_elapsed_time = 0,
+    six_arm_data = data.frame(
+      Trial = character(0),
+      Arm = character(0),
+      Odour_Source = character(0),
+      Count = numeric(0),
+      stringsAsFactors = FALSE
+    ),
+    six_arm_start_time = NULL,
+    six_arm_trial_running = FALSE,
+    six_arm_elapsed_time = 0,
+    six_arm_total_elapsed_time = 0
+  )
+  
+  observeEvent(input$olfactometer_type, {
+    if (input$olfactometer_type == "four") {
+      updateTabsetPanel(session, "tabs", selected = "Four-Arm Olfactometer")
+    } else if (input$olfactometer_type == "two") {
+      updateTabsetPanel(session, "tabs", selected = "Two-Arm Olfactometer")
+    } else if (input$olfactometer_type == "six") {
+      updateTabsetPanel(session, "tabs", selected = "Six-Arm Olfactometer")
+    }
+  })
+  
+  observeEvent(input$tabs, {
+    if (input$tabs == "Four-Arm Olfactometer") {
+      updateSelectInput(session, "olfactometer_type", selected = "four")
+    } else if (input$tabs == "Two-Arm Olfactometer") {
+      updateSelectInput(session, "olfactometer_type", selected = "two")
+    } else if (input$tabs == "Six-Arm Olfactometer") {
+      updateSelectInput(session, "olfactometer_type", selected = "six")
+    }
+  })
+  
+  observeEvent(input$start, {
+    # Set default odour sources if they are empty
+    if (input$arm1_odour == "") updateTextInput(session, "arm1_odour", value = "Odour A")
+    if (input$arm2_odour == "") updateTextInput(session, "arm2_odour", value = "Odour B")
+    if (input$arm3_odour == "") updateTextInput(session, "arm3_odour", value = "Odour C")
+    if (input$arm4_odour == "") updateTextInput(session, "arm4_odour", value = "Odour D")
+    
+    arms$start_time <- Sys.time()
+    if (is.null(arms$trial_start)) {
+      arms$trial_start <- Sys.time()
+    }
+    arms$trial_running <- TRUE
+    session$sendCustomMessage(type = "attachKeyListener", message = list())
+    shinyjs::disable(selector = 'input')
+  })
+  
+  observeEvent(input$stop, {
+    if (!is.null(arms$current_arm) && !is.null(arms$start_time)) {
+      duration <- difftime(Sys.time(), arms$start_time, units = "secs")
+      odour_source <- switch(arms$current_arm,
+                             "Arm 1" = input$arm1_odour,
+                             "Arm 2" = input$arm2_odour,
+                             "Arm 3" = input$arm3_odour,
+                             "Arm 4" = input$arm4_odour,
+                             "Center" = input$arm5_odour)
+      arms$times <- arms$times %>%
+        add_row(Arm = arms$current_arm, Duration = as.numeric(duration), Count = 1, Odour_Source = odour_source, Trial = input$trial_number_four)
+      arms$total_elapsed_time <- arms$total_elapsed_time + as.numeric(duration)
+    }
+    arms$current_arm <- NULL
+    arms$trial_running <- FALSE
+    arms$start_time <- NULL
+    session$sendCustomMessage(type = "detachKeyListener", message = list())
+    shinyjs::enable(selector = 'input')
+  })
+  
+  observeEvent(input$add_trial, {
+    arms$all_times <- bind_rows(arms$all_times, arms$times)
+    arms$current_arm <- "Center"
+    arms$start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$trial_start <- NULL
+    arms$elapsed_time <- 0
+    arms$total_elapsed_time <- 0
+    updateTextInput(session, "trial_number_four", value = as.character(as.numeric(input$trial_number_four) + 1))
+  })
+  
+  observeEvent(input$reset_trial, {
+    arms$current_arm <- "Center"
+    arms$start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$trial_start <- NULL
+    arms$elapsed_time <- 0
+    arms$total_elapsed_time <- 0
+  })
+  
+  observeEvent(input$key, {
+    if (arms$trial_running) {
+      if (!is.null(arms$current_arm) && !is.null(arms$start_time)) {
+        duration <- difftime(Sys.time(), arms$start_time, units = "secs")
+        odour_source <- switch(arms$current_arm,
+                               "Arm 1" = input$arm1_odour,
+                               "Arm 2" = input$arm2_odour,
+                               "Arm 3" = input$arm3_odour,
+                               "Arm 4" = input$arm4_odour,
+                               "Center" = input$arm5_odour)
+        arms$times <- arms$times %>%
+          add_row(Arm = arms$current_arm, Duration = as.numeric(duration), Count = 1, Odour_Source = odour_source, Trial = input$trial_number_four)
+        arms$total_elapsed_time <- arms$total_elapsed_time + as.numeric(duration)
+      }
+      arms$start_time <- Sys.time()
+      arms$current_arm <- switch(input$key,
+                                 `1` = "Arm 1",
+                                 `2` = "Arm 2",
+                                 `3` = "Arm 3",
+                                 `4` = "Arm 4",
+                                 `5` = "Center",
+                                 arms$current_arm
+      )
+    }
+  })
+  
+  output$current_arm <- renderText({
+    arms$current_arm
+  })
+  
+  summarized_times <- reactive({
+    arms$times %>%
+      group_by(Trial, Arm, Odour_Source) %>%
+      summarize(
+        Total_Duration = sum(Duration),
+        Total_Entries = n(),
+        .groups = 'drop'
+      ) %>%
+      mutate(Total_Duration = format_duration(Total_Duration))
+  })
+  
+  output$arm_times <- renderTable({
+    summarized_times() %>%
+      rename(
+        "Trial" = Trial,
+        "Arm" = Arm,
+        "Odour Source" = Odour_Source,
+        "Total Duration (MM:SS)" = Total_Duration,
+        "Total Entries" = Total_Entries
+      )
+  })
+  
+  autoInvalidate <- reactiveTimer(1000)
+  
+  output$trial_timer <- renderText({
+    autoInvalidate()
+    if (arms$trial_running) {
+      elapsed <- as.numeric(difftime(Sys.time(), arms$start_time, units = "secs")) + arms$total_elapsed_time
+    } else {
+      elapsed <- arms$total_elapsed_time
+    }
+    format_duration(elapsed)
+  })
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("olfactometer_data_", input$trial_number_four, "_", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      summarized_data <- bind_rows(arms$all_times, arms$times) %>%
+        group_by(Trial, Arm, Odour_Source) %>%
+        summarize(
+          Total_Duration = sum(Duration),
+          Total_Entries = n(),
+          .groups = 'drop'
+        ) %>%
+        mutate(Total_Duration = format_duration(Total_Duration)) %>%
+        select(Trial, Arm, Odour_Source, Total_Duration, Total_Entries)
+      write.csv(summarized_data, file, row.names = FALSE)
+    }
+  )
+  
+  observeEvent(input$two_arm_start, {
+    # Set default odour sources if they are empty
+    if (input$two_arm_arm1_odour == "") updateTextInput(session, "two_arm_arm1_odour", value = "Odour A")
+    if (input$two_arm_arm2_odour == "") updateTextInput(session, "two_arm_arm2_odour", value = "Odour B")
+    
+    arms$two_arm_start_time <- Sys.time()
+    if (is.null(arms$two_arm_trial_start)) {
+      arms$two_arm_trial_start <- Sys.time()
+    }
+    arms$two_arm_trial_running <- TRUE
+    session$sendCustomMessage(type = "attachKeyListener", message = list())
+    shinyjs::disable(selector = 'input')
+  })
+  
+  observeEvent(input$two_arm_stop, {
+    arms$two_arm_trial_running <- FALSE
+    arms$two_arm_start_time <- NULL
+    session$sendCustomMessage(type = "detachKeyListener", message = list())
+    shinyjs::enable(selector = 'input')
+  })
+  
+  observeEvent(input$two_arm_add_trial, {
+    arms$two_arm_data <- bind_rows(arms$two_arm_data, arms$times)
+    arms$current_arm <- "Center"
+    arms$two_arm_start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$two_arm_trial_start <- NULL
+    arms$two_arm_elapsed_time <- 0
+    arms$two_arm_total_elapsed_time <- 0
+    updateTextInput(session, "trial_number_two", value = as.character(as.numeric(input$trial_number_two) + 1))
+  })
+  
+  observeEvent(input$two_arm_reset_trial, {
+    arms$current_arm <- "Center"
+    arms$two_arm_start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$two_arm_trial_start <- NULL
+    arms$two_arm_elapsed_time <- 0
+    arms$two_arm_total_elapsed_time <- 0
+    arms$two_arm_data <- data.frame(
+      Trial = character(0),
+      Arm = character(0),
+      Odour_Source = character(0),
+      Count = numeric(0),
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  autoInvalidate <- reactiveTimer(1000)
+  
+  output$two_arm_trial_timer <- renderText({
+    autoInvalidate()
+    if (arms$two_arm_trial_running) {
+      elapsed <- as.numeric(difftime(Sys.time(), arms$two_arm_start_time, units = "secs")) + arms$two_arm_total_elapsed_time
+    } else {
+      elapsed <- arms$two_arm_total_elapsed_time
+    }
+    format_duration(elapsed)
+  })
+  
+  output$downloadDataTwoArm <- downloadHandler(
+    filename = function() {
+      paste("two_arm_olfactometer_data_", input$trial_number_two, "_", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      summarized_data <- arms$two_arm_data %>%
+        group_by(Trial, Arm, Odour_Source) %>%
+        summarize(
+          Count = sum(Count),
+          .groups = 'drop'
+        )
+      write.csv(summarized_data, file, row.names = FALSE)
+    }
+  )
+  
+  observeEvent(input$submit_two_arm, {
+    # Ensure default odour sources are set
+    if (input$two_arm_arm1_odour == "") updateTextInput(session, "two_arm_arm1_odour", value = "Odour A")
+    if (input$two_arm_arm2_odour == "") updateTextInput(session, "two_arm_arm2_odour", value = "Odour B")
+    
+    # Ensure counts are numeric
+    arm1_count <- as.numeric(input$arm1_count)
+    arm2_count <- as.numeric(input$arm2_count)
+    central_count <- as.numeric(input$central_count)
+    
+    total_count <- arm1_count + arm2_count + central_count
+    if (total_count != as.numeric(input$num_released)) {
+      showModal(modalDialog(
+        title = "Error",
+        "The total number of individuals in all arms does not match the number released.",
+        easyClose = TRUE,
+        footer = NULL
+      ))
+    } else {
+      arms$two_arm_data <- arms$two_arm_data %>%
+        add_row(Trial = input$trial_number_two, Arm = "Arm 1", Odour_Source = input$two_arm_arm1_odour, Count = round(arm1_count, 0)) %>%
+        add_row(Trial = input$trial_number_two, Arm = "Arm 2", Odour_Source = input$two_arm_arm2_odour, Count = round(arm2_count, 0)) %>%
+        add_row(Trial = input$trial_number_two, Arm = "Center", Odour_Source = "Center", Count = round(central_count, 0))
+    }
+  })
+  
+  output$two_arm_results <- renderTable({
+    arms$two_arm_data %>%
+      mutate(across(where(is.numeric), \(x) round(x, 0))) %>%
+      rename(
+        "Trial" = Trial,
+        "Arm" = Arm,
+        "Odour Source" = Odour_Source,
+        "Count" = Count
+      ) %>%
+      mutate(Count = as.integer(Count))
+  })
+  
+  observeEvent(input$six_arm_start, {
+    # Set default odour sources if they are empty
+    if (input$arm1_six_odour == "") updateTextInput(session, "arm1_six_odour", value = "Odour A")
+    if (input$arm2_six_odour == "") updateTextInput(session, "arm2_six_odour", value = "Odour B")
+    if (input$arm3_six_odour == "") updateTextInput(session, "arm3_six_odour", value = "Odour C")
+    if (input$arm4_six_odour == "") updateTextInput(session, "arm4_six_odour", value = "Odour D")
+    if (input$arm5_six_odour == "") updateTextInput(session, "arm5_six_odour", value = "Odour E")
+    if (input$arm6_six_odour == "") updateTextInput(session, "arm6_six_odour", value = "Odour F")
+    
+    arms$six_arm_start_time <- Sys.time()
+    if (is.null(arms$six_arm_trial_start)) {
+      arms$six_arm_trial_start <- Sys.time()
+    }
+    arms$six_arm_trial_running <- TRUE
+    session$sendCustomMessage(type = "attachKeyListener", message = list())
+    shinyjs::disable(selector = 'input')
+  })
+  
+  observeEvent(input$six_arm_stop, {
+    arms$six_arm_trial_running <- FALSE
+    arms$six_arm_start_time <- NULL
+    session$sendCustomMessage(type = "detachKeyListener", message = list())
+    shinyjs::enable(selector = 'input')
+  })
+  
+  observeEvent(input$six_arm_add_trial, {
+    arms$six_arm_data <- bind_rows(arms$six_arm_data, arms$times)
+    arms$current_arm <- "Center"
+    arms$six_arm_start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$six_arm_trial_start <- NULL
+    arms$six_arm_elapsed_time <- 0
+    arms$six_arm_total_elapsed_time <- 0
+    updateTextInput(session, "trial_number_six", value = as.character(as.numeric(input$trial_number_six) + 1))
+  })
+  
+  observeEvent(input$six_arm_reset_trial, {
+    arms$current_arm <- "Center"
+    arms$six_arm_start_time <- NULL
+    arms$times <- data.frame(
+      Arm = character(0),
+      Duration = numeric(0),
+      Count = integer(0),
+      Odour_Source = character(0),
+      Trial = character(0),
+      stringsAsFactors = FALSE
+    )
+    arms$six_arm_trial_start <- NULL
+    arms$six_arm_elapsed_time <- 0
+    arms$six_arm_total_elapsed_time <- 0
+    arms$six_arm_data <- data.frame(
+      Trial = character(0),
+      Arm = character(0),
+      Odour_Source = character(0),
+      Count = numeric(0),
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  autoInvalidate <- reactiveTimer(1000)
+  
+  output$six_arm_trial_timer <- renderText({
+    autoInvalidate()
+    if (arms$six_arm_trial_running) {
+      elapsed <- as.numeric(difftime(Sys.time(), arms$six_arm_start_time, units = "secs")) + arms$six_arm_total_elapsed_time
+    } else {
+      elapsed <- arms$six_arm_total_elapsed_time
+    }
+    format_duration(elapsed)
+  })
+  
+  output$downloadDataSixArm <- downloadHandler(
+    filename = function() {
+      paste("six_arm_olfactometer_data_", input$trial_number_six, "_", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      summarized_data <- arms$six_arm_data %>%
+        group_by(Trial, Arm, Odour_Source) %>%
+        summarize(
+          Count = sum(Count),
+          .groups = 'drop'
+        )
+      write.csv(summarized_data, file, row.names = FALSE)
+    }
+  )
+  
+  observeEvent(input$submit_six_arm, {
+    # Ensure default odour sources are set
+    if (input$arm1_six_odour == "") updateTextInput(session, "arm1_six_odour", value = "Odour A")
+    if (input$arm2_six_odour == "") updateTextInput(session, "arm2_six_odour", value = "Odour B")
+    if (input$arm3_six_odour == "") updateTextInput(session, "arm3_six_odour", value = "Odour C")
+    if (input$arm4_six_odour == "") updateTextInput(session, "arm4_six_odour", value = "Odour D")
+    if (input$arm5_six_odour == "") updateTextInput(session, "arm5_six_odour", value = "Odour E")
+    if (input$arm6_six_odour == "") updateTextInput(session, "arm6_six_odour", value = "Odour F")
+    
+    # Ensure counts are numeric
+    arm1_count <- as.numeric(input$arm1_six_count)
+    arm2_count <- as.numeric(input$arm2_six_count)
+    arm3_count <- as.numeric(input$arm3_six_count)
+    arm4_count <- as.numeric(input$arm4_six_count)
+    arm5_count <- as.numeric(input$arm5_six_count)
+    arm6_count <- as.numeric(input$arm6_six_count)
+    central_count <- as.numeric(input$central_six_count)
+    
+    total_count <- arm1_count + arm2_count + arm3_count + arm4_count + arm5_count + arm6_count + central_count
+    if (total_count != as.numeric(input$num_released_six)) {
+      showModal(modalDialog(
+        title = "Error",
+        "The total number of individuals in all arms does not match the number released.",
+        easyClose = TRUE,
+        footer = NULL
+      ))
+    } else {
+      arms$six_arm_data <- arms$six_arm_data %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 1", Odour_Source = input$arm1_six_odour, Count = round(arm1_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 2", Odour_Source = input$arm2_six_odour, Count = round(arm2_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 3", Odour_Source = input$arm3_six_odour, Count = round(arm3_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 4", Odour_Source = input$arm4_six_odour, Count = round(arm4_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 5", Odour_Source = input$arm5_six_odour, Count = round(arm5_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Arm 6", Odour_Source = input$arm6_six_odour, Count = round(arm6_count, 0)) %>%
+        add_row(Trial = input$trial_number_six, Arm = "Center", Odour_Source = "Center", Count = round(central_count, 0))
+    }
+  })
+  
+  output$six_arm_results <- renderTable({
+    arms$six_arm_data %>%
+      mutate(across(where(is.numeric), \(x) round(x, 0))) %>%
+      rename(
+        "Trial" = Trial,
+        "Arm" = Arm,
+        "Odour Source" = Odour_Source,
+        "Count" = Count
+      ) %>%
+      mutate(Count = as.integer(Count))
+  })
+  
+  output$introduction <- renderUI({
+    HTML('
+    <br>
+    <h2>Introduction</h2>
+    <p>This Shiny web app is designed to help you collect data from an insect olfactometer bioassays. There are currently three olfactometer designs supported: (1) four-arm olfactometers, (2) two-arm olfactometers, and (3) six-arm olfactometers. Data can be downloaded as a CSV file.</p>
+    <br>')
+  })
+  
+  output$best_practices <- renderTable({
+    best_practices <- data.frame(
+      "Consideration" = c(
+        "Olfactometer Design", 
+        "Environment", 
+        "Stimuli Presentation", 
+        "Cleaning Procedures", 
+        "Physiological State", 
+        "Releasing Organisms"
+      ),
+      "Best Practices" = c(
+        "Ensure the design suits the research question and species; use chemically inert materials; pilot test configurations.", 
+        "Report and control temperature and humidity; use consistent lighting; minimise external stimuli.",
+        "Avoid mechanical damage to biological materials; consider solvent properties for synthetic chemicals.",
+        "Thoroughly clean between replicates; use fragrance-free detergents; appropriately clean or replace activated charcoal filters.",
+        "Report and standardise the physiological state; account for time-of-day effects; use blocking in design and analysis.",
+        "Decide between individual or group releases based on interaction and social behaviors; treat each group release as a single replicate."
+      ),
+      stringsAsFactors = FALSE
+    )
+    colnames(best_practices) <- c("Consideration", "Best Practices")
+    best_practices
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
