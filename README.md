@@ -64,9 +64,5 @@ shiny::runApp()
 3. **Stimuli Presentation**: Avoid mechanical damage to biological materials; consider solvent properties for synthetic chemicals.
 4. **Cleaning Procedures**: Thoroughly clean between replicates; use fragrance-free detergents; appropriately clean or replace activated charcoal filters.
 5. **Physiological State**: Report and standardise the physiological state; account for time-of-day effects; use blocking in design and analysis.
-6. **Releasing Organisms**: Decide between individual or group releases based on interaction and social behaviors; treat each group release as a single replicate.
+6. **Releasing Organisms**: Decide between individual or group releases based on interaction and social behaviours; treat each group release as a single replicate.
 
-## Links
-
-- [GitHub Repository](https://github.com/Dr-Joe-Roberts/olfactometer_app)
-- [Shiny App Deployment](https://dr-joe-roberts.shinyapps.io/olfactometer_app/)
