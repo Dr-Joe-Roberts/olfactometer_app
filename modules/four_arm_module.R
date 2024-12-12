@@ -141,7 +141,7 @@ fourArmServer <- function(id, parent_input) {
     
     # Helper function to record arm duration
     record_arm_duration <- function() {
-      duration <- as.numeric(difftime(Sys.time(), arms$start_time, units = "secs"))
+      duration <- round(as.numeric(difftime(Sys.time(), arms$start_time, units = "secs")), 2)
       odour_source <- get_odour_source(arms$current_arm)
       
       arms$times <- arms$times %>%
@@ -195,7 +195,7 @@ fourArmServer <- function(id, parent_input) {
       
       if (new_arm != arms$current_arm) {
         if (!is.null(arms$current_arm) && !is.null(arms$start_time)) {
-          duration <- as.numeric(difftime(key_time, arms$start_time, units = "secs"))
+          duration <- round(as.numeric(difftime(key_time, arms$start_time, units = "secs")), 2)
           odour_source <- get_odour_source(arms$current_arm)
           
           arms$times <- arms$times %>%
@@ -251,7 +251,7 @@ fourArmServer <- function(id, parent_input) {
       } else {
         elapsed <- arms$total_elapsed_time
       }
-      round(elapsed, 0)  # Round to whole number
+      sprintf("%02d:%02d:%02d", floor(elapsed / 3600), floor((elapsed %% 3600) / 60), round(elapsed %% 60))
     })
     
     # Download handler
