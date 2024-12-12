@@ -8,7 +8,7 @@ sixArmUI <- function(id) {
     h2("Six-Arm Olfactometer"),
     br(),
     fluidRow(
-      column(6, h4("Trial Timer (seconds)"), verbatimTextOutput(ns("trial_timer")))
+      column(6, h4("Trial Timer"), verbatimTextOutput(ns("trial_timer")))
     ),
     fluidRow(
       class = "centered-buttons",
