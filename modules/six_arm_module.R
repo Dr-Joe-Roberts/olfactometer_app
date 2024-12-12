@@ -225,7 +225,7 @@ sixArmServer <- function(id, parent_input) {
       } else {
         elapsed <- arms$total_elapsed_time
       }
-      round(elapsed, 0)  # Round to whole number
+      sprintf("%02d:%02d:%02d", floor(elapsed / 3600), floor((elapsed %% 3600) / 60), round(elapsed %% 60))
     })
     
     # Results table
