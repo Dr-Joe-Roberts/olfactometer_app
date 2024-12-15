@@ -57,12 +57,6 @@ shiny::runApp()
 6. Click the "Reset Trial" button to clear the current trial data without saving.
 7. Click the "Download Data as CSV" button to download the summarised data from all trials as a CSV file.
 
-### Treatment Randomisation
-
-1. Enter the treatments for each arm in the "Treatment Randomisation" tab.
-2. Click the "Randomise Treatments" button to randomise the positions of the treatments.
-3. The randomised positions will be automatically updated in the data collection tabs for the corresponding olfactometer type.
-
 ## Best Practices for Conducting Insect Olfactometer Bioassays
 
 1. **Olfactometer Design**: Ensure the design suits the research question and species; use chemically inert materials; pilot test configurations.
