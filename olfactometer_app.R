@@ -9,6 +9,7 @@ library(shinyjs)
 source("modules/four_arm_module.R")
 source("modules/two_arm_module.R")
 source("modules/six_arm_module.R")
+source("modules/treatment_randomisation_module.R")
 
 # UI
 ui <- fluidPage(
@@ -202,6 +203,9 @@ ui <- fluidPage(
                   ),
                   tabPanel("Six-Arm Olfactometer",
                            sixArmUI("six_arm")
+                  ),
+                  tabPanel("Treatment Randomisation",
+                           treatmentRandomisationUI("treatment_randomisation")
                   )
       )
     )
@@ -241,6 +245,7 @@ server <- function(input, output, session) {
   fourArmServer("four_arm", input)
   twoArmServer("two_arm", input)
   sixArmServer("six_arm", input)
+  treatmentRandomisationServer("treatment_randomisation", input)
   
   # Introduction UI
   output$introduction <- renderUI({
