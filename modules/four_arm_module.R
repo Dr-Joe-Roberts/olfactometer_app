@@ -5,11 +5,11 @@ fourArmUI <- function(id) {
   ns <- NS(id)
   
   tagList(
-    h2("Four-Arm Olfactometer"),
+    h2("Four-Arm Olfactometer", class = "large-text"),
     br(),
     fluidRow(
-      column(6, h4("Current Arm"), verbatimTextOutput(ns("current_arm"))),
-      column(6, h4("Trial Timer"), verbatimTextOutput(ns("trial_timer")))
+      column(6, h4("Current Arm", class = "large-text"), verbatimTextOutput(ns("current_arm"))),
+      column(6, h4("Trial Timer", class = "large-text"), verbatimTextOutput(ns("trial_timer")))
     ),
     fluidRow(
       class = "centered-buttons",
@@ -20,7 +20,7 @@ fourArmUI <- function(id) {
       column(2, downloadButton(ns("downloadData"), "Download Data as CSV", class = "btn btn-download"))
     ),
     tags$br(), tags$br(),
-    h4("Trial Summary"),
+    h4("Trial Summary", class = "large-text"),
     tableOutput(ns("arm_times"))
   )
 }
